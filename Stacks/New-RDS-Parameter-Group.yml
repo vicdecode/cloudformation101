@@ -44,7 +44,7 @@ Resources:
   MyRDSParamGroup:
     Type: 'AWS::RDS::DBParameterGroup'
     Properties:
-      Family: MySQL5.6
+      Family: MySQL5.7
       Description: CloudFormation Sample Database Parameter Group
       Parameters:
         autocommit: '1'
