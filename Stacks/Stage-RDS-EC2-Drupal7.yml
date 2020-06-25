@@ -50,7 +50,7 @@ Resources:
       MasterUserPassword: !Ref DBPassword
       DBParameterGroupName: decode-rds
 Outputs:
-  JDBCConnectionString:
+  OutputString:
     Description: Output of your database credentials
     Value: !Join 
       - ''
