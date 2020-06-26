@@ -1,0 +1,264 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: web
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "Network Configuration"
+        Parameters: 
+          - VPCZoneIDs
+          - InstanceSecurityGroup
+      - 
+        Label: 
+          default: "RDS Configuration"
+        Parameters: 
+          - DBInstanceType
+          - DBIDName
+          - DBName
+          - DBUser
+          - DBPassword
+      -  
+        Label:
+          default: "Web Server Configuration"
+        Parameters:
+          - ELBName
+          - InstanceType
+          - ImageId
+          - KeyName
+
+    ParameterLabels: 
+      VPCZoneIDs: 
+        default: "Which VPC subnets should this be deployed to?"
+      InstanceSecurityGroup: 
+        default: "Choose your security group, it should reside in the same network"
+      DBInstanceType:
+        default: "Choose your database instance type"
+      DBIDName: 
+        default: "Instance name of your database"
+      DBName:
+        default: "Create new database"
+      DBUser:
+        default: "Create new db user"
+      DBPassword:
+        default: "Password for your user"
+      InstanceType:
+        default: "Choose your machine configuration"
+      KeyName:
+        default: "Choose your SSH key pair"
+      ImageId:
+        default: "Choose your machine image (AMI)" 
+      ELBName:
+        default: "Name your load balancer"
+Parameters: 
+  VPCZoneIDs:
+    Description: The VPC and subnets to set up the app in.
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  ELBName:
+    Description: The URL name of your load balancer link
+    Type: String
+  DBInstanceType:
+    Default: db.t2.micro
+    Description: The database instance type
+    Type: String
+  DBInstanceStorage:
+    Default: '20'
+    Type: String
+  DBIDName:
+    Description: The database instance name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBName:
+    Default: MyDatabase
+    Description: The database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBUser:
+    Description: The database admin account username
+    Type: String
+    MinLength: '1'
+    MaxLength: '32'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBPassword:
+    Description: The database admin account password
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters, at least 8 characters
+  InstanceSecurityGroup:
+    Description: Instance security group
+    Type: 'AWS::EC2::SecurityGroup::Id'
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t2.micro
+    ConstraintDescription: must be a valid EC2 instance type.
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instances
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  ImageId:
+    Description: Available AMIS - stlukesdrupal7ami
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+  ConfigFile:
+    Description: Link to your config file (where db settings are stored)
+    Type: String
+Resources:
+  MyDB:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceIdentifier: !Ref DBIDName
+      DBName: !Ref DBName
+      AllocatedStorage: !Ref DBInstanceStorage
+      DBInstanceClass: !Ref DBInstanceType
+      Engine: MySQL
+      EngineVersion: 5.7.22
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      DBParameterGroupName: decode-rds
+  WebServerGroup:
+    DependsOn: MyDB
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier: !Ref VPCZoneIDs
+      LaunchConfigurationName: !Ref LaunchConfig
+      MinSize: '2'
+      MaxSize: '2'
+      LoadBalancerNames:
+        - !Ref ElasticLoadBalancer
+    CreationPolicy:
+      ResourceSignal:
+        Count: '2'
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: '2'
+        MaxBatchSize: '2'
+        WaitOnResourceSignals: 'true'
+  LaunchConfig:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Metadata:
+      Comment: Install a simple application
+      AWS::CloudFormation::Init:
+        configSets:
+          setup:
+            - "configure_cfn"
+        configure_cfn:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                verbose=true
+                interval=5
+              mode: "000400"
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.EC2.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2 --configsets setup --region ${AWS::Region}
+              mode: "000400"
+              owner: root
+              group: root
+            /lib/systemd/system/cfn-hup.service:
+              content: !Sub |
+                [Unit]
+                Description=cfn-hup daemon
+                
+                [Service]
+                Type=simple
+                ExecStart=/opt/aws/bin/cfn-hup
+                Restart=always
+                
+                [Install]
+                WantedBy=multi-user.target
+              mode: "000400"
+              owner: root
+              group: root
+          commands:
+            01_enable_cfn-hup:
+              command: "systemctl enable cfn-hup.service"
+            02_start_cfn-hup:
+              command: "systemctl start cfn-hup.service"
+    Properties:
+      KeyName: !Ref KeyName
+      ImageId: !Ref ImageId
+      SecurityGroups:
+        - !Ref InstanceSecurityGroup
+      InstanceType: !Ref InstanceType
+      UserData: 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update -y
+          apt-get install -y python-pip
+          apt-get install -y python-setuptools
+          mkdir -p /opt/aws/bin
+          python /usr/lib/python2.7/dist-packages/easy_install.py --script-dir /opt/aws/bin https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerGroup --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal --stack ${AWS::StackName} --resource WebServerGroup --region ${AWS::Region}
+          cp test ${ConfigFile}
+          cd /home/ubuntu;touch vic
+          #clone repository that holds database backup
+          git clone ${DatabaseRepo}
+          #execute mysql commands to import database from current location sql file to rds
+          mysql -h 
+          !GetAtt 
+            - MyDB
+            - Endpoint.Address
+
+  ElasticLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
+    Properties:
+      Subnets: !Ref VPCZoneIDs
+      CrossZone: 'true'
+      SecurityGroups:
+        - !Ref InstanceSecurityGroup
+      Listeners:
+        - LoadBalancerPort: '80'
+          InstancePort: '80'
+          Protocol: HTTP
+      HealthCheck:
+        Target: 'HTTP:80/install.php'
+        HealthyThreshold: '2'
+        UnhealthyThreshold: '3'
+        Interval: '10'
+        Timeout: '5'
+      LoadBalancerName: !Ref ELBName
+Outputs:
+  URL:
+    Description: The URL of the load balancer, can be used as a CNAME record for your domain.
+    Value: !Join 
+      - ''
+      - - 'http://'
+        - !GetAtt 
+          - ElasticLoadBalancer
+          - DNSName
+  DBCredentials:
+    Description: Output of your database credentials
+    Value: !Join 
+      - ''
+      - - 'Endpoint:'
+        - !GetAtt 
+          - MyDB
+          - Endpoint.Address
+        - ':'
+        - !GetAtt 
+          - MyDB
+          - Endpoint.Port
+        -   '; DBName:'
+        - !Ref DBName
+        - '; DBUser:'
+        - !Ref DBUser
+        - '; DBPassword :'
+        - !Ref DBPassword
