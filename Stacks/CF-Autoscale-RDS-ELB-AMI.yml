@@ -343,7 +343,7 @@ Resources:
           sed -i 's/servernamegoeshere/${ServerName}/g' startup.com.conf
           sed -i 's/serveraliasgoeshere/${ServerAlias}/g' startup.com.conf
           sed -i 's/webmaster@localhost/${ServerAdmin}/g' startup.com.conf
-          sed -i 's/documentrootgoeshere/${DocumentRoot}/g' startup.com.conf          
+          sed -i 's#documentrootgoeshere#${DocumentRoot}#g' startup.com.conf          
           #rename startup.com.conf to be the site url.conf
           mv startup.com.conf ${SiteURL}.conf
           a2ensite ${SiteURL}.conf
