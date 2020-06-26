@@ -7,17 +7,22 @@ Metadata:
         Label: 
           default: "Network Configuration"
         Parameters: 
-          - VPCZoneIDs
-          - InstanceSecurityGroup
+          - InstanceSubnets
+          - DBSubnets
+          - AppSecurityGroups
+          - AppTagName
       - 
         Label: 
           default: "RDS Configuration"
         Parameters: 
-          - DBInstanceType
           - DBIDName
+          - DBInstanceType
+          - DBInstanceStorage
           - DBName
           - DBUser
           - DBPassword
+          - DBRepo
+          - DBRepoCkOut
       -  
         Label:
           default: "Web Server Configuration"
@@ -26,14 +31,37 @@ Metadata:
           - InstanceType
           - ImageId
           - KeyName
+          - EBSSize
+          - GitRepo
+          - GitRepoCkOut
+      -
+        Label:
+          default: "Apache Configuration"
+        Parameters:
+          - SiteURL
+          - ServerName
+          - ServerAlias
+          - ServerAdmin
+          - DocumentRoot
+      -
+        Label:
+          default: "Bootstrap Configuration"
+        Parameters:
+          - BootStrapCommand
 
     ParameterLabels: 
-      VPCZoneIDs: 
-        default: "Which VPC subnets should this be deployed to?"
-      InstanceSecurityGroup: 
+      InstanceSubnets: 
+        default: "Which VPC subnets should the instances be deployed to?"
+      DBSubnets:
+        default: "Which VPC subnets should the database be deployed to?"
+      AppTagName:
+        default: "Tag your app and its resources"
+      AppSecurityGroups: 
         default: "Choose your security group, it should reside in the same network"
       DBInstanceType:
         default: "Choose your database instance type"
+      DBInstanceStorage:
+        default: "Choose your database instance storage, in GB"
       DBIDName: 
         default: "Instance name of your database"
       DBName:
@@ -42,17 +70,42 @@ Metadata:
         default: "Create new db user"
       DBPassword:
         default: "Password for your user"
+      DBRepo:
+        default: "Git repository of your database backup"
+      DBRepoCkout:
+        default: "Git command(s) to checkout branch or tag for db backup"
       InstanceType:
         default: "Choose your machine configuration"
       KeyName:
         default: "Choose your SSH key pair"
       ImageId:
         default: "Choose your machine image (AMI)" 
+      EBSSize: 
+        default: "Choose the size of your EBS Storage, default 30GB"
+      GitRepo:
+        default: "Git repository of your app's codebase"
+      GitRepoCkOut:
+        default: "Git command(s) to checkout branch or tag for codebase"
       ELBName:
         default: "Name your load balancer"
+      BootStrapCommand:
+        default: "Shell commands to run on all servers"
+      SiteURL:
+        default: "URL of your domain, i.e. mywebsite.com"
+      ServerName:
+        default: "Enter your server name, (can be same or different from URL or IP address), i.e. mywebsite.com"
+      ServerAlias:
+        default: "Enter your server alias, (secondary name of your domain, i.e. www.mywebsite.com)"
+      ServerAdmin:
+        default: "Email address of server admin (i.e. webmaster@localhost)"
+      DocumentRoot:
+        default: "Absolute path to web server folder, i.e. /var/www/myappname/drupal/web"
 Parameters: 
-  VPCZoneIDs:
-    Description: The VPC and subnets to set up the app in.
+  InstanceSubnets:
+    Description: The VPC and subnets to set up the app in. Public.
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  DBSubnets:
+    Description: The VPC and subnets to set up the db in. Private.
     Type: 'List<AWS::EC2::Subnet::Id>'
   ELBName:
     Description: The URL name of your load balancer link
@@ -65,6 +118,7 @@ Parameters:
     Default: '20'
     Type: String
   DBIDName:
+    Default: db
     Description: The database instance name
     Type: String
     MinLength: '1'
@@ -72,7 +126,7 @@ Parameters:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
   DBName:
-    Default: MyDatabase
+    Default: database
     Description: The database name
     Type: String
     MinLength: '1'
@@ -80,6 +134,7 @@ Parameters:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
   DBUser:
+    Default: admin
     Description: The database admin account username
     Type: String
     MinLength: '1'
@@ -93,7 +148,7 @@ Parameters:
     MaxLength: '41'
     AllowedPattern: '[a-zA-Z0-9]*'
     ConstraintDescription: must contain only alphanumeric characters, at least 8 characters
-  InstanceSecurityGroup:
+  AppSecurityGroups:
     Description: Instance security group
     Type: 'AWS::EC2::SecurityGroup::Id'
   InstanceType:
@@ -106,16 +161,59 @@ Parameters:
     Type: 'AWS::EC2::KeyPair::KeyName'
     ConstraintDescription: must be the name of an existing EC2 KeyPair.
   ImageId:
-    Description: Available AMIS - stlukesdrupal7ami
+    Description: Available AMIS - apache24php74, apache24php72
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-  ConfigFile:
-    Description: Link to your config file (where db settings are stored)
+  DBRepo:
+    Default: https://user:password@github.com/org/repo.git
+    Description: For private repos enter https://username:password@github/organization/repo.git
+    Type: String
+  DBRepoCkOut:
+    Description: Use && or ; to separate commands, or link to your shell script, make sure to run chmod script +x beforehand
+    Type: String
+  EBSSize:
+    Default: 30
+    Description: Size of your instance's root hard drive, in gigabytes. 
+    Type: String
+  GitRepo:
+    Default: https://user:password@github.com/org/repo.git
+    Description: For private repos enter https://username:password@github/organization/repo.git
+    Type: String
+  GitRepoCkOut:
+    Description: Use && or ; to separate commands, or link to your shell script, make sure to run chmod script +x beforehand
+    Type: String
+  BootStrapCommand:
+    Description: Use && or ; to separate commands, or link to your shell script, make sure to run chmod script +x beforehand
+    Type: String
+  AppTagName:
+    Default: ENV-CLIENT
+    Description: Name of your app, tag gets applied to all resources, environment-client's name
+    Type: String
+  SiteURL:
+    Default: decodedigital.co
+    Description: Simple URL
+    Type: String
+  ServerName:
+    Default: decodedigital.co
+    Description: Server Name can be hostname or IP address 
+    Type: String
+  ServerAlias:
+    Default: www.decodedigital.co
+    Description: Server Alias can be hostname or IP address
+    Type: String
+  ServerAdmin:
+    Default: webmaster@decodedigital.co
+    Description: E-mail address
+    Type: String
+  DocumentRoot:
+    Default: /var/www/myappname/drupal/web
+    Description: Path to document root folder
     Type: String
 Resources:
   MyDB:
     Type: 'AWS::RDS::DBInstance'
     Properties:
       DBInstanceIdentifier: !Ref DBIDName
+      DBSubnetGroupName: !Ref DBSubnetGroup
       DBName: !Ref DBName
       AllocatedStorage: !Ref DBInstanceStorage
       DBInstanceClass: !Ref DBInstanceType
@@ -124,28 +222,45 @@ Resources:
       MasterUsername: !Ref DBUser
       MasterUserPassword: !Ref DBPassword
       DBParameterGroupName: decode-rds
-  WebServerGroup:
+      VPCSecurityGroups: 
+        - !Ref AppSecurityGroups
+      PubliclyAccessible: false
+      Tags:
+        - Key: Name
+          Value: !Ref AppTagName
+  DBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: "Private database subnets for the RDS database."
+      DBSubnetGroupName: !Ref AppTagName
+      SubnetIds: !Ref DBSubnets
+  MyWebApp:
     DependsOn: MyDB
     Type: 'AWS::AutoScaling::AutoScalingGroup'
     Properties:
-      VPCZoneIdentifier: !Ref VPCZoneIDs
+      VPCZoneIdentifier: !Ref InstanceSubnets
       LaunchConfigurationName: !Ref LaunchConfig
       MinSize: '2'
-      MaxSize: '2'
+      MaxSize: '3'
       LoadBalancerNames:
         - !Ref ElasticLoadBalancer
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: !Ref AppTagName
+      AutoScalingGroupName: !Ref AppTagName
     CreationPolicy:
       ResourceSignal:
         Count: '2'
     UpdatePolicy:
       AutoScalingRollingUpdate:
-        MinInstancesInService: '2'
-        MaxBatchSize: '2'
+        MinInstancesInService: '1'
+        MaxBatchSize: '3'
         WaitOnResourceSignals: 'true'
   LaunchConfig:
     Type: 'AWS::AutoScaling::LaunchConfiguration'
     Metadata:
-      Comment: Install a simple application
+      Comment: Launch my web app in a load balanced environment. 
       AWS::CloudFormation::Init:
         configSets:
           setup:
@@ -192,38 +307,67 @@ Resources:
             02_start_cfn-hup:
               command: "systemctl start cfn-hup.service"
     Properties:
+      LaunchConfigurationName: !Ref AppTagName
       KeyName: !Ref KeyName
       ImageId: !Ref ImageId
       SecurityGroups:
-        - !Ref InstanceSecurityGroup
+        - !Ref AppSecurityGroups
       InstanceType: !Ref InstanceType
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize: !Ref EBSSize
+            VolumeType: gp2
       UserData: 
-        Fn::Base64: !Sub |
+        Fn::Base64: !Sub 
+        - |
           #!/bin/bash
           apt-get update -y
           apt-get install -y python-pip
           apt-get install -y python-setuptools
           mkdir -p /opt/aws/bin
           python /usr/lib/python2.7/dist-packages/easy_install.py --script-dir /opt/aws/bin https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerGroup --region ${AWS::Region}
-          /opt/aws/bin/cfn-signal --stack ${AWS::StackName} --resource WebServerGroup --region ${AWS::Region}
-          cp test ${ConfigFile}
-          cd /home/ubuntu;touch vic
-          #clone repository that holds database backup
-          git clone ${DatabaseRepo}
-          #execute mysql commands to import database from current location sql file to rds
-          mysql -h 
-          !GetAtt 
-            - MyDB
-            - Endpoint.Address
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MyWebApp --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal --stack ${AWS::StackName} --resource MyWebApp --region ${AWS::Region}
+          #optional migration steps, skip this if a new app
+          #clone repository that holds database backup and files and checkout branch or tag
+          cd /var/www
+          git clone ${DBRepo}
+          ${DBRepoCkOut}
+          cd /var/www
+          git clone ${GitRepo}
+          ${GitRepoCkOut}
+          #configure apache to point to documentroot 
+          cd /etc/apache2/sites-available
+          #stream edit the apache config settings into startup.com.conf
+          sed -i 's/servernamegoeshere/${ServerName}/g' startup.com.conf
+          sed -i 's/serveraliasgoeshere/${ServerAlias}/g' startup.com.conf
+          sed -i 's/webmaster@localhost/${ServerAdmin}/g' startup.com.conf
+          sed -i 's/documentrootgoeshere/${DocumentRoot}/g' startup.com.conf          
+          #rename startup.com.conf to be the site url.conf
+          mv startup.com.conf ${SiteURL}.conf
+          a2ensite ${SiteURL}.conf
+          service apache2 restart
+          #output db credentials into dbcreds folder
+          cd /home/ubuntu
+          echo ${DBEndpoint} > dbhostname
+          echo ${DBName} > dbname
+          echo ${DBUser} > dbuser
+          echo ${DBPassword} > dbpassword
+          mkdir dbcreds
+          mv db*
+          #additional bootstrap commands, i.e. builds, start services, etc.
+          cd /home/ubuntu
+          ${BootStrapCommand}
+        - DBEndpoint: !GetAtt MyDB.Endpoint.Address 
 
   ElasticLoadBalancer:
     Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
     Properties:
-      Subnets: !Ref VPCZoneIDs
+      Subnets: !Ref InstanceSubnets
       CrossZone: 'true'
       SecurityGroups:
-        - !Ref InstanceSecurityGroup
+        - !Ref AppSecurityGroups
       Listeners:
         - LoadBalancerPort: '80'
           InstancePort: '80'
@@ -235,8 +379,11 @@ Resources:
         Interval: '10'
         Timeout: '5'
       LoadBalancerName: !Ref ELBName
+      Tags:
+        - Key: Name
+          Value: !Ref AppTagName
 Outputs:
-  URL:
+  ELBURL:
     Description: The URL of the load balancer, can be used as a CNAME record for your domain.
     Value: !Join 
       - ''
