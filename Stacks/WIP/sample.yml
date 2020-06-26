@@ -1,11 +1,12 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: >-
-  AWS CloudFormation Sample Template RDS_with_DBParameterGroup: Sample template
-  showing how to create an Amazon RDS Database Instance with a
-  DBParameterGroup.**WARNING** This template creates an Amazon Relational
-  Database Service database instance. You will be billed for the AWS resources
-  used if you create a stack from this template.
 Parameters:
+  DBIDName:
+    Description: The database instance name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
   DBName:
     Default: MyDatabase
     Description: The database name
@@ -18,7 +19,7 @@ Parameters:
     Description: The database admin account username
     Type: String
     MinLength: '1'
-    MaxLength: '16'
+    MaxLength: '32'
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
   DBPassword:
@@ -28,34 +29,26 @@ Parameters:
     MinLength: '8'
     MaxLength: '41'
     AllowedPattern: '[a-zA-Z0-9]*'
-    ConstraintDescription: must contain only alphanumeric characters.
+    ConstraintDescription: must contain only alphanumeric characters, at least 8 characters.
 Resources:
   MyDB:
     Type: 'AWS::RDS::DBInstance'
     Properties:
+      DBInstanceIdentifier: !Ref DBIDName
       DBName: !Ref DBName
-      AllocatedStorage: '5'
-      DBInstanceClass: db.t2.small
+      AllocatedStorage: '20'
+      DBInstanceClass: db.t2.micro
       Engine: MySQL
       EngineVersion: 5.7.22
       MasterUsername: !Ref DBUser
       MasterUserPassword: !Ref DBPassword
-      DBParameterGroupName: !Ref MyRDSParamGroup
-  MyRDSParamGroup:
-    Type: 'AWS::RDS::DBParameterGroup'
-    Properties:
-      Family: MySQL5.7
-      Description: CloudFormation Sample Database Parameter Group
-      Parameters:
-        autocommit: '1'
-        general_log: '1'
-        old_passwords: '0'
+      DBParameterGroupName: decode-rds
 Outputs:
   JDBCConnectionString:
-    Description: JDBC connection string for the database
+    Description: Output of your database credentials
     Value: !Join 
       - ''
-      - - 'jdbc:mysql://'
+      - - 'Endpoint:'
         - !GetAtt 
           - MyDB
           - Endpoint.Address
