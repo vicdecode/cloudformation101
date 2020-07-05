@@ -262,7 +262,7 @@ Resources:
           #!/bin/bash
           apt-get update; apt-get upgrade -y
           apt-get install jq awscli -y
-          aws-configure set region us-east-1
+          aws configure set region us-east-1
           apt-get install -s python-pip
           apt-get install -y python-setuptools
           mkdir -p /opt/aws/bin
