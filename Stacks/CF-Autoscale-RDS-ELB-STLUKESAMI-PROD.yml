@@ -246,6 +246,7 @@ Resources:
     Properties:
       LaunchConfigurationName: !Ref AppTagName
       KeyName: !Ref KeyName
+      IamInstanceProfile: EC2ElasticIPRole
       ImageId: !Ref ImageId
       SecurityGroups:
         - !Ref AppSecurityGroups
@@ -260,6 +261,8 @@ Resources:
         - |
           #!/bin/bash
           apt-get update; apt-get upgrade -y
+          apt-install jq awscli -y
+          aws-configure set region us-east-1
           apt-get install -y python-pip
           apt-get install -y python-setuptools
           mkdir -p /opt/aws/bin
@@ -277,14 +280,14 @@ Resources:
           #mount EFS
           cd /home/ubuntu
           ./mount.sh          
-          #connect db to settings.php
-          cd /var/www/chi-st-lukes/drupal/web/sites/default/
-          cp defaultconfig.settings.php settings.php
-          sed -i "s/databasenamegoeshere/${DBName}/" settings.php
-          sed -i "s/dbusernamegoeshere/${DBUser}/" settings.php
-          sed -i "s/dbpasswordgoeshere/${DBPassword}/" settings.php
-          sed -i "s/dbhostgoeshere/${DBEndpoint}/" settings.php
+          #auto-assign elastic ip from pool to instance
+          ALLOCATION_ID=`aws ec2 describe-addresses --filters="Name=tag:pool,Values=stagestlukes" | jq -r '.Addresses[] | "\(.InstanceId) \(.AllocationId)"' | grep null | awk '{print $2}' | xargs shuf -n1 -e`
+          INSTANCE_ID=`curl http://169.254.169.254/latest/meta-data/instance-id`
+          if [ ! -z $ALLOCATION_ID ]; then
+          aws ec2 associate-address --instance-id $INSTANCE_ID --allocation-id $ALLOCATION_ID --allow-reassociation
+          fi
           #additional bootstrap commands, i.e. builds, start services, etc.
+          cd /home/ubuntu
           ${BootStrapCommand}
         - DBEndpoint: !GetAtt MyDB.Endpoint.Address 
 
