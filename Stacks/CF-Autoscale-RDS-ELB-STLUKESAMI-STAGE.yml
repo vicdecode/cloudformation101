@@ -274,6 +274,9 @@ Resources:
           echo ${DBPassword} > dbpassword
           mkdir dbcreds
           mv db* dbcreds
+          #mount EFS
+          cd /home/ubuntu
+          ./mount.sh          
           #connect db to settings.php
           cd /var/www/chi-st-lukes/drupal/web/sites/default/
           cp defaultconfig.settings.php settings.php
@@ -282,8 +285,6 @@ Resources:
           sed -i "s/dbpasswordgoeshere/${DBPassword}/" settings.php
           sed -i "s/dbhostgoeshere/${DBEndpoint}/" settings.php
           #additional bootstrap commands, i.e. builds, start services, etc.
-          cd /home/ubuntu
-          ./mount.sh
           ${BootStrapCommand}
         - DBEndpoint: !GetAtt MyDB.Endpoint.Address 
 
