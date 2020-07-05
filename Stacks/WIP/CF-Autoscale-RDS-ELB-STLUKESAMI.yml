@@ -36,15 +36,6 @@ Metadata:
           - GitRepoCkOut
       -
         Label:
-          default: "Apache Configuration"
-        Parameters:
-          - SiteURL
-          - ServerName
-          - ServerAlias
-          - ServerAdmin
-          - DocumentRoot
-      -
-        Label:
           default: "Bootstrap Configuration"
         Parameters:
           - BootStrapCommand
@@ -90,16 +81,7 @@ Metadata:
         default: "Name your load balancer"
       BootStrapCommand:
         default: "Shell commands to run on all servers"
-      SiteURL:
-        default: "URL of your domain, i.e. mywebsite.com"
-      ServerName:
-        default: "Enter your server name, (can be same or different from URL or IP address), i.e. mywebsite.com"
-      ServerAlias:
-        default: "Enter your server alias, (secondary name of your domain, i.e. www.mywebsite.com)"
-      ServerAdmin:
-        default: "Email address of server admin (i.e. webmaster@localhost)"
-      DocumentRoot:
-        default: "Absolute path to web server folder, i.e. /var/www/myappname/drupal/web"
+
 Parameters: 
   InstanceSubnets:
     Description: The VPC and subnets to set up the app in. Public.
@@ -188,26 +170,7 @@ Parameters:
     Default: ENV-CLIENT
     Description: Name of your app, tag gets applied to all resources, environment-client's name
     Type: String
-  SiteURL:
-    Default: decodedigital.co
-    Description: Simple URL
-    Type: String
-  ServerName:
-    Default: decodedigital.co
-    Description: Server Name can be hostname or IP address 
-    Type: String
-  ServerAlias:
-    Default: www.decodedigital.co
-    Description: Server Alias can be hostname or IP address
-    Type: String
-  ServerAdmin:
-    Default: webmaster@decodedigital.co
-    Description: E-mail address
-    Type: String
-  DocumentRoot:
-    Default: /var/www/myappname/drupal/web
-    Description: Path to document root folder
-    Type: String
+
 Resources:
   MyDB:
     Type: 'AWS::RDS::DBInstance'
@@ -338,16 +301,16 @@ Resources:
           git clone ${GitRepo}
           ${GitRepoCkOut}
           #configure apache to point to documentroot 
-          cd /etc/apache2/sites-available
+          #cd /etc/apache2/sites-available
           #stream edit the apache config settings into startup.com.conf
-          sed -i 's/servernamegoeshere/${ServerName}/g' startup.com.conf
-          sed -i 's/serveraliasgoeshere/${ServerAlias}/g' startup.com.conf
-          sed -i 's/webmaster@localhost/${ServerAdmin}/g' startup.com.conf
-          sed -i 's#documentrootgoeshere#${DocumentRoot}#g' startup.com.conf          
+          #sed -i 's/servernamegoeshere/${ServerName}/g' startup.com.conf
+          #sed -i 's/serveraliasgoeshere/${ServerAlias}/g' startup.com.conf
+          #sed -i 's/webmaster@localhost/${ServerAdmin}/g' startup.com.conf
+          #sed -i 's#documentrootgoeshere#${DocumentRoot}#g' startup.com.conf          
           #rename startup.com.conf to be the site url.conf
-          mv startup.com.conf ${SiteURL}.conf
-          a2ensite ${SiteURL}.conf
-          service apache2 restart
+          #mv startup.com.conf ${SiteURL}.conf
+          #a2ensite ${SiteURL}.conf
+          #service apache2 restart
           #output db credentials into dbcreds folder
           cd /home/ubuntu
           echo ${DBEndpoint} > dbhostname
@@ -355,9 +318,17 @@ Resources:
           echo ${DBUser} > dbuser
           echo ${DBPassword} > dbpassword
           mkdir dbcreds
-          mv db*
+          mv db* dbcreds
+          #connect db to settings.php
+          cd /var/www/chi-st-lukes/drupal/web/sites/default/
+          cp defaultconfig.settings.php settings.php
+          sed -i "s/databasenamegoeshere/${DBName}/" settings.php
+          sed -i "s/dbusernamegoeshere/${DBUser}/" settings.php
+          sed -i "s/dbpasswordgoeshere/${DBPassword}/" settings.php
+          sed -i "s/dbhostgoeshere/${DBEndpoint}/" settings.php
           #additional bootstrap commands, i.e. builds, start services, etc.
           cd /home/ubuntu
+          ./mount.sh
           ${BootStrapCommand}
         - DBEndpoint: !GetAtt MyDB.Endpoint.Address 
 
