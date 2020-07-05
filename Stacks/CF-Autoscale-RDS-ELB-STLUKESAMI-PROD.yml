@@ -261,9 +261,9 @@ Resources:
         - |
           #!/bin/bash
           apt-get update; apt-get upgrade -y
-          apt-install jq awscli -y
+          apt-get install jq awscli -y
           aws-configure set region us-east-1
-          apt-get install -y python-pip
+          apt-get install -s python-pip
           apt-get install -y python-setuptools
           mkdir -p /opt/aws/bin
           python /usr/lib/python2.7/dist-packages/easy_install.py --script-dir /opt/aws/bin https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
