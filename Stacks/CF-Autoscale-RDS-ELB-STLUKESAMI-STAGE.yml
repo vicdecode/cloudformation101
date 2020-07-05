@@ -266,25 +266,6 @@ Resources:
           python /usr/lib/python2.7/dist-packages/easy_install.py --script-dir /opt/aws/bin https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource MyWebApp --region ${AWS::Region}
           /opt/aws/bin/cfn-signal --stack ${AWS::StackName} --resource MyWebApp --region ${AWS::Region}
-          #optional migration steps, skip this if a new app
-          #clone repository that holds database backup and files and checkout branch or tag
-          cd /var/www
-          git clone ${DBRepo}
-          ${DBRepoCkOut}
-          cd /var/www
-          git clone ${GitRepo}
-          ${GitRepoCkOut}
-          #configure apache to point to documentroot 
-          #cd /etc/apache2/sites-available
-          #stream edit the apache config settings into startup.com.conf
-          #sed -i 's/servernamegoeshere/${ServerName}/g' startup.com.conf
-          #sed -i 's/serveraliasgoeshere/${ServerAlias}/g' startup.com.conf
-          #sed -i 's/webmaster@localhost/${ServerAdmin}/g' startup.com.conf
-          #sed -i 's#documentrootgoeshere#${DocumentRoot}#g' startup.com.conf          
-          #rename startup.com.conf to be the site url.conf
-          #mv startup.com.conf ${SiteURL}.conf
-          #a2ensite ${SiteURL}.conf
-          #service apache2 restart
           #output db credentials into dbcreds folder
           cd /home/ubuntu
           echo ${DBEndpoint} > dbhostname
