@@ -34,6 +34,9 @@ Metadata:
         Label:
           default: "Bootstrap Configuration"
         Parameters:
+          - AppPath
+          - Repo
+          - GitCkOut
           - BootStrapCommand
 
     ParameterLabels: 
@@ -69,6 +72,12 @@ Metadata:
         default: "Name your load balancer"
       BootStrapCommand:
         default: "Shell commands to run on all servers"
+      AppPath: 
+        default: "Path to Your App"
+      Repo:
+        default: "Your Github Repo"
+      GitCkOut:
+        default: "Check Out Branch / Tag"
 
 Parameters: 
   InstanceSubnets:
@@ -143,6 +152,18 @@ Parameters:
   AppTagName:
     Default: ENV-CLIENT
     Description: Name of your app, tag gets applied to all resources, environment-client's name
+    Type: String
+  AppPath:
+    Default: /var/www/appname
+    Descritpion: The path to your app, drupal, wordpress, magento, etc.
+    Type: String
+  Repo:
+    Default: https://user:password/github.com/DecodeDigitaMarketing/repo.git
+    Description: The link to your repo. If the repo is private, use credentials in link.
+    Type: String
+  GitCkOut:
+    Default: git checkout develop
+    Description: Commands to check out a particular branch or tag. (optional)
     Type: String
 
 Resources:
@@ -286,6 +307,10 @@ Resources:
           if [ ! -z $ALLOCATION_ID ]; then
           aws ec2 associate-address --instance-id $INSTANCE_ID --allocation-id $ALLOCATION_ID --allow-reassociation
           fi
+          #update codebase with info from repo
+          cd ${AppPath}
+          git clone ${Repo}
+          ${GitCkOut}
           #additional bootstrap commands, i.e. builds, start services, etc.
           cd /home/ubuntu
           ${BootStrapCommand}
